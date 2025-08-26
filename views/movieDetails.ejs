@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title><%= movie.title %> - Netflex</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-black text-white min-h-screen">
+
+  <!-- Header -->
+  <header class="bg-gradient-to-b from-black p-6 flex justify-between items-center">
+    <h1 class="text-3xl font-bold text-red-600">NETFLEX</h1>
+     <ul class="flex space-x-6">
+      <li><a href="/user/netflex/home" class="hover:text-red-500">Home</a></li>
+      <li><a href="/user/netflex/movies" class="hover:text-red-500">Movies</a></li>
+      <li><a href="/user/netflex/tvshows" class="hover:text-red-500">TV Shows</a></li>
+      <li><a href="/user/netflex/mylist" class="hover:text-red-500">My List</a></li>
+      <li><a href="/user/netflex/setting" class="hover:text-red-500">Settings</a></li>
+      <li><a href="/user/netflex/search" class="hover:text-red-500">Search</a></li>
+
+    </ul>
+  </header>
+
+  <!-- Movie Detail Layout -->
+  <div class="p-4 space-y-6">
+
+    <!-- Trailer at Top -->
+    <div class="w-full rounded-lg overflow-hidden shadow-lg">
+      <video controls autoplay class="w-full h-80 rounded-lg">
+        <source src="<%= movie.trailerUrl %>" type="video/mp4">
+        Your browser does not support video playback.
+      </video>
+    </div>
+
+    <!-- Title & Info -->
+    <div>
+      <h1 class="text-3xl font-bold"><%= movie.title %></h1>
+      <p class="text-gray-400 text-sm">
+        •  <%= movie.year %>    •  <%= movie.country %> •  <%= movie.genre %> • min: <%= movie.duration %> 
+      </p>
+      
+     
+       <p class="text-gray-400 text-sm">
+         director: <%= movie.director %> • <%= movie.cast %>         •  <%= movie.tags %> • rating: <%= movie.rating %> 
+
+      </p>
+     
+      
+      <p class="text-gray-400 text-sm">Audio: <%= movie.audioLanguages || 'English' %></p>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex flex-wrap gap-4">
+      <a href="#" class="flex-1 text-center bg-red-500 text-black font-bold py-2 rounded-lg">▶ Watch Now</a>
+
+      <form action="/user/netflex/mylist/<%= movie._id %>" method="POST">
+        <button type="submit" class="px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700">+ List</button>
+      </form>
+
+      <button class="px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700">👍 Rate</button>
+      <button class="px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700">🔗 Share</button>
+      <button class="px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700">⬇ Download</button>
+    </div>
+
+    <!-- Tabs Section -->
+    <div class="border-t border-gray-700 pt-4">
+      <ul class="flex gap-6 text-gray-400 text-sm">
+        <li class="text-white border-b-2 border-white pb-1">Details</li>
+        <li>Comments</li>
+        <li>Trailer</li>
+      </ul>
+    </div>
+
+    <!-- Details Section -->
+    <div class="text-gray-300">
+      <p><%= movie.description %></p>
+    </div>
+
+  </div>
+
+</body>
+</html>

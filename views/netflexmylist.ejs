@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My List - Netflex</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-black text-white">
+
+  <header class="bg-gradient-to-b from-black p-6 flex justify-between items-center">
+    <h1 class="text-3xl font-bold text-red-600">NETFLEX</h1>
+    <a href="/user/netflex/home" class="text-gray-300 hover:text-white">Home</a>
+  </header>
+
+  <div class="p-6">
+    <h2 class="text-3xl font-bold mb-6">My List</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+      <% movies.forEach(movie => { %>
+        <div class="bg-gray-900 rounded-lg overflow-hidden shadow-lg">
+          <a href="/user/netflex/movie/<%= movie._id %>">
+            <img src="<%= movie.posterUrl %>" alt="<%= movie.title %>" class="w-full h-64 object-cover">
+          </a>
+          <div class="p-4">
+            <h3 class="text-xl font-semibold"><%= movie.title %></h3>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+
+</body>
+</html>
