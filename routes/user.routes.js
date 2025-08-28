@@ -54,9 +54,7 @@ router.get('/netflex/movies', (req, res) => {
 router.get('/netflex/tvshows', (req, res) => {
   res.render('netflextvshows'); 
 });
-router.get('/netflex/search', (req, res) => {
-  res.render('netflexsearch'); 
-});
+
 router.get('/netflex/setting/profile', (req, res) => {
   res.render('settingprofile'); 
 });
@@ -314,6 +312,26 @@ router.get('/netflex/mylist', authenticate, async (req, res) => {
   } catch (err) {
     console.error('Error fetching My List:', err);
     res.status(500).send('Failed to load My List'); 
+  }
+});
+
+
+router.get('/netflex/search', async (req, res) => {
+  try {
+    const query = req.query.query || "";
+
+    
+    let movies = [];
+    if (query) {
+      movies = await Movie.find({
+        title: { $regex: query, $options: "i" } 
+      });
+    }
+
+    res.render("netflexsearch", { movies }); 
+  } catch (err) {
+    console.error("Error searching movies:", err);
+    res.status(500).send("Failed to search movies");
   }
 });
 

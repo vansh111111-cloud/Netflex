@@ -1,71 +1,70 @@
+<!-- views/search.ejs -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>NETFLEX - Search</title>
+  <title>Netflex | Search</title>
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-black text-white">
-
+<body class="bg-black text-white min-h-screen">
   <!-- Navbar -->
-  <nav class="flex justify-between items-center p-4 bg-gray-900 sticky top-0 z-50">
+   <nav class="flex justify-between items-center p-4 bg-gray-900">
     <h1 class="text-2xl font-bold text-red-600">NETFLEX</h1>
-    <ul class="flex gap-6 text-gray-300">
+    <ul class="flex space-x-6">
       <li><a href="/user/netflex/home" class="hover:text-red-500">Home</a></li>
       <li><a href="/user/netflex/movies" class="hover:text-red-500">Movies</a></li>
-            <li><a href="/user/netflex/search" class="hover:text-red-500">Search</a></li>
-
       <li><a href="/user/netflex/tvshows" class="hover:text-red-500">TV Shows</a></li>
       <li><a href="/user/netflex/mylist" class="hover:text-red-500">My List</a></li>
       <li><a href="/user/netflex/setting" class="hover:text-red-500">Settings</a></li>
+      <li><a href="/user/netflex/search" class="hover:text-red-500">Search</a></li>
+
     </ul>
   </nav>
+  <header class="flex justify-between items-center px-6 py-4 bg-black bg-opacity-90">
+   
+    <form action="/user/netflex/search" method="GET" class="flex space-x-2">
+      <input 
+        type="text" 
+        name="query" 
+        placeholder="Search for a movie..." 
+        required
+        class="px-3 py-2 rounded-md text-black focus:outline-none focus:ring-2 focus:ring-red-600"
+      />
+      <button 
+        type="submit" 
+        class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-md font-semibold"
+      >
+        Search
+      </button>
+    </form>
+  </header>
 
-  <!-- Search Section -->
-  <section class="p-6 max-w-4xl mx-auto">
-    <h2 class="text-3xl font-bold mb-6">Search</h2>
-
-    <!-- Search Bar -->
-    <div class="flex items-center bg-gray-800 rounded-lg overflow-hidden shadow-md mb-8">
-      <input type="text" placeholder="Search for movies, TV shows..." class="w-full p-3 bg-gray-800 text-white focus:outline-none">
-      <button class="bg-red-600 px-5 py-3 font-semibold">Search</button>
-    </div>
-
-    <!-- Example Search Results -->
-    <div>
-      <h3 class="text-xl font-semibold mb-4">Top Results</h3>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+  <!-- Search Results -->
+  <main class="px-6 py-6">
+    <% if (movies && movies.length > 0) { %>
+      <h2 class="text-2xl font-semibold mb-4">Search Results</h2>
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+        <% movies.forEach(movie => { %>
+          <div class="bg-gray-900 rounded-lg shadow-lg overflow-hidden transform hover:scale-105 transition duration-300">
+            <a href="/user/netflex/movie/<%= movie._id %>">
+    <img 
+      src="<%= movie.poster %>" 
+      alt="<%= movie.title %>" 
+      class="w-full h-60 object-cover hover:opacity-80 transition"
+    />
+  </a>
+            <div class="p-3">
+              <h3 class="text-lg font-bold truncate"><%= movie.title %></h3>
+              <p class="text-sm text-gray-400"><%= movie.year %></p>
         
-        <!-- Movie Card -->
-        <div class="bg-gray-900 rounded-lg shadow hover:scale-105 transform transition duration-300">
-          <img src="https://via.placeholder.com/200x300" alt="Movie Poster" class="rounded-t-lg w-full h-48 object-cover">
-          <div class="p-3">
-            <h4 class="font-bold text-lg">Movie Title</h4>
-            <p class="text-sm text-gray-400">Action • 2025</p>
+            </div>
           </div>
-        </div>
-
-        <!-- Another Movie -->
-        <div class="bg-gray-900 rounded-lg shadow hover:scale-105 transform transition duration-300">
-          <img src="https://via.placeholder.com/200x300" alt="Movie Poster" class="rounded-t-lg w-full h-48 object-cover">
-          <div class="p-3">
-            <h4 class="font-bold text-lg">Another Movie</h4>
-            <p class="text-sm text-gray-400">Drama • 2024</p>
-          </div>
-        </div>
-
-        <!-- More results... -->
-        <div class="bg-gray-900 rounded-lg shadow hover:scale-105 transform transition duration-300">
-          <img src="https://via.placeholder.com/200x300" alt="Movie Poster" class="rounded-t-lg w-full h-48 object-cover">
-          <div class="p-3">
-            <h4 class="font-bold text-lg">Series Title</h4>
-            <p class="text-sm text-gray-400">TV Show • 3 Seasons</p>
-          </div>
-        </div>
-
+        <% }) %>
       </div>
-    </div>
-  </section>
-
+    <% } else if (movies) { %>
+      <p class="text-gray-400 text-lg">No movies found.</p>
+    <% } %>
+  </main>
 </body>
 </html>
