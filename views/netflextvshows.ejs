@@ -4,20 +4,37 @@
   <meta charset="UTF-8">
   <title>NETFLEX - TV Shows</title>
   <script src="https://cdn.tailwindcss.com"></script>
+     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<style>
+    .nav-link {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 0.5rem;
+      transition: transform 0.3s ease, filter 0.3s ease;
+    }
+
+    .nav-icon {
+      font-size: 2.5rem; /* bigger icons */
+      color: #888;       /* default grey */
+      transition: color 0.3s ease, transform 0.3s ease, filter 0.3s ease;
+    }
+
+    .nav-link:hover .nav-icon {
+      color: #e50914;     /* Netflix red on hover */
+      transform: scale(1.4) rotate(-5deg); /* slight rotate + grow */
+      filter: drop-shadow(0 0 10px #e50914); /* subtle glow */
+    }
+
+    @media (max-width: 768px) {
+      .nav-icon { font-size: 2rem; }
+      nav { gap: x -6px; }
+    }
+  </style>
 </head>
 <body class="bg-black text-white">
-<nav class="flex justify-between items-center p-4 bg-gray-900">
-    <h1 class="text-2xl font-bold text-red-600">NETFLEX</h1>
-    <ul class="flex space-x-6">
-      <li><a href="/user/netflex/home" class="hover:text-red-500">Home</a></li>
-      <li><a href="/user/netflex/movies" class="hover:text-red-500">Movies</a></li>
-      <li><a href="/user/netflex/tvshows" class="hover:text-red-500">TV Shows</a></li>
-      <li><a href="/user/netflex/mylist" class="hover:text-red-500">My List</a></li>
-      <li><a href="/user/netflex/setting" class="hover:text-red-500">Settings</a></li>
-      <li><a href="/user/netflex/search" class="hover:text-red-500">Search</a></li>
+<%- include('partials/navbar') %>
 
-    </ul>
-  </nav>
   <section class="p-6">
     <h2 class="text-2xl mb-4 font-bold">Popular TV Shows</h2>
     <div class="grid grid-cols-6 gap-4">

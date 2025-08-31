@@ -26,7 +26,8 @@ const userSchema = new mongoose.Schema({
             enum: ['user', 'creator', 'admin'],
             default: 'user'
         },
-         myList: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Movie' }] ,default: []
+         myList: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Movie' }] ,default: [],
+         googleId: { type: [String] }
 })
 const user = mongoose.model("User", userSchema);
-module.exports = user;
+module.exports = user; 

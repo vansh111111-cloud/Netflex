@@ -4,9 +4,15 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
  const userModel = require('./config/models/user.model'); 
  const CreatorRequest = require('./config/models/Creatorrequest');
+  const Otp = require('./config/models/otpmodel');
  const Movie = require('./config/models/moviemodel');   
-
+const cloudinary = require("cloudinary").v2;
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const path = require('path');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const passport = require("passport");
+const session = require('express-session');
+const sendOtpEmail = require('../utils/mailer');
 const multer = require('multer');
 const cookieParser = require('cookie-parser');
 const app = express();
@@ -15,6 +21,118 @@ router.use(cookieParser());
 const { body ,validationResult } = require('express-validator');
 const { useReducer } = require('react');
 
+router.use(
+  session({
+    secret: "!@#$%^&*()QWERTYUIOPqwertyuiop_+-=",  
+    resave: false,
+    saveUninitialized: true,
+  })
+);
+
+
+router.use(passport.initialize());
+router.use(passport.session());
+
+
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL: process.env.GOOGLE_CALLBACK_URL,
+    },
+    async (accessToken, refreshToken, profile, done) => {
+      try {
+      
+        let user = await userModel.findOne({ email: profile.emails[0].value });
+
+        if (!user) {
+         
+          user = new userModel({
+            googleId: profile.id,
+            username: profile.displayName,
+            email: profile.emails[0].value,
+          });
+          await user.save();
+        } else if (!user.googleId) {
+         
+          user.googleId = profile.id;
+          await user.save();
+        }
+
+        return done(null, user);
+      } catch (err) {
+        return done(err, null);
+      }
+    }
+  )
+);
+
+
+passport.serializeUser((user, done) => {
+  done(null, user.id);
+});
+passport.deserializeUser(async (id, done) => {
+  const user = await userModel.findById(id);
+  done(null, user);
+});
+
+
+
+
+router.get(
+  "/auth/google", 
+  passport.authenticate("google", { scope: ["profile", "email"] })
+);
+
+router.get(
+  "/auth/google/callback",
+  passport.authenticate("google", { failureRedirect: "/user/home" }),
+  async (req, res) => {
+    try {
+      const user = req.user;
+
+     
+      const token = jwt.sign(
+        { id: user._id, email: user.email },
+        process.env.JWT_SECRET,
+        { expiresIn: "1h" }
+      );
+
+      
+      res.cookie("token", token, { httpOnly: true });
+
+      
+      res.redirect("/user/netflex/home");
+    } catch (err) {
+      console.error("Google login error:", err);
+      res.redirect("/user/home");
+    }
+  }
+);
+
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.CLOUD_API_KEY,
+  api_secret: process.env.CLOUD_API_SECRET
+});
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: async (req, file) => {
+    let resourceType = "image"; 
+    if (file.mimetype.startsWith("video")) {
+      resourceType = "video";  
+    }
+    return {
+      folder: "netflex_movies",
+      resource_type: resourceType,
+      allowed_formats: ["jpg", "png", "mp4"],
+      public_id: Date.now() + "-" + file.originalname.split(".")[0]
+    };
+  },
+});
+
+const upload = multer({ storage });
 
  const authenticate = (req, res, next) => {
   const token = req.cookies.token;
@@ -47,12 +165,10 @@ router.get('/netflex/home',authenticate, async (req, res) => {
 
 
 
-router.get('/netflex/movies', (req, res) => {
-  res.render('netflexmovies'); 
-});
 
-router.get('/netflex/tvshows', (req, res) => {
-  res.render('netflextvshows'); 
+
+router.get('/netflex/tvshows',authenticate, (req, res) => {
+  res.render('netflextvshows',{ role: req.user.role}); 
 });
 
 router.get('/netflex/setting/profile', (req, res) => {
@@ -110,14 +226,54 @@ router.get('/register', (req, res) =>
            })}
         
             const { username, email, password } = req.body;
-           const hashedPassword = await bcrypt.hash(password, 10  );
-                const newUser = await userModel.create({
-                email,
-                username,
-                 password: hashedPassword  
-    })
-    res.redirect('/user/login');
-} )
+         
+            const existingUser = await userModel.findOne({ $or: [{ email }, { username }] });
+            if (existingUser) {
+                return res.status(400).json({
+                    message: 'Username or email already exists'
+                })
+            }
+//otp generation
+ const otp = Math.floor(100000 + Math.random() * 900000).toString();
+   console.log("Generated OTP for", email, "is:", otp);
+    await Otp.create({ email, otp, username, password });
+
+   //send otp to email
+               await sendOtpEmail(email, otp);
+
+   
+
+    res.render("verify", { email });
+ console.log('otp sent to : ',email);
+  }
+);
+router.post("/verify-otp", async (req, res) => {
+  const { email, otp } = req.body;
+
+  // Find OTP record
+  const record = await Otp.findOne({ email, otp });
+  console.log(record);
+  if (!record) {
+    return res.status(400).json({ message: "Invalid or expired OTP" });
+  }
+
+  // Hash password before saving
+  const hashedPassword =  await bcrypt.hash(record.password, 10);  
+
+  // Create user
+  const newUser = new userModel({
+    username: record.username,
+    email: record.email,
+    password: hashedPassword,
+  });
+  await newUser.save();
+
+  // Delete OTP after use
+  await Otp.deleteMany({ email });
+
+  return res.redirect('/user/login');
+});
+
 router.get('/login', (req, res) =>
      {res.render('login');
 
@@ -219,35 +375,20 @@ function requireCreator(req, res, next) {
     }
 }
 
-// GET page to show upload form
+
 router.get('/netflex/upload', requireCreator, (req, res) => {
     res.render('netflexupload'); // <- view file
 });
 
-// POST to handle trailer upload
 
 
-// store uploaded trailers in /uploads/trailers
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    if (file.fieldname === 'poster') {
-      cb(null, path.join(__dirname, '..', 'uploads', 'posters'));
-    } else if (file.fieldname === 'trailer') {
-      cb(null, path.join(__dirname, '..', 'uploads', 'trailers'));
-    }
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname);
-  }
-});
-const upload = multer({ storage });
 
-router.post(
+     router.post(
   '/netflex/upload',
   requireCreator,
   upload.fields([
     { name: 'poster', maxCount: 1 },
-    { name: 'trailer', maxCount: 1 }
+    { name: 'trailer', maxCount: 1 },
   ]),
   async (req, res) => {
     try {
@@ -263,30 +404,29 @@ router.post(
         duration: req.body.duration,
         tags: req.body.tags ? req.body.tags.split(',').map(t => t.trim()) : [],
         rating: req.body.rating,
-        posterUrl: req.files['poster']
-          ? '/uploads/posters/' + req.files['poster'][0].filename
-          : null,
-        trailerUrl: req.files['trailer']
-          ? '/uploads/trailers/' + req.files['trailer'][0].filename
-          : null,
-        uploadedBy: req.user._id
+
+        // ✅ Store Cloudinary URLs (not local filenames)
+        posterUrl: req.files['poster'] ? req.files['poster'][0].path : null,
+        trailerUrl: req.files['trailer'] ? req.files['trailer'][0].path : null,
+
+        uploadedBy: req.user._id,
       });
 
       await movie.save();
       res.redirect('/user/netflex/home');
+
+
     } catch (err) {
-      console.error('Error uploading movie:', err);
-      res.status(500).send('Upload failed');
-    }
+  console.error('Error uploading movie:', err.message || err);
+  res.status(500).send(err.message || 'Upload failed');
+}
+
   }
 );
 
-
-      
-
-  router.get('/netflex/movie/:id', async (req, res) => {
+  router.get('/netflex/movie/:id',authenticate, async (req, res) => {
   const movie = await Movie.findById(req.params.id);
-  res.render('movieDetails', { movie });
+  res.render('movieDetails', { movie , role: req.user.role });
 });
      
 router.post('/netflex/mylist/:movieId',authenticate, async (req, res) => {
@@ -308,7 +448,7 @@ router.get('/netflex/mylist', authenticate, async (req, res) => {
   try {
     const user = await userModel.findById(req.user.userId).populate('myList');
     console.log("Fetched My List:", user.myList);
-    res.render('netflexmylist', { movies: user.myList || [] }); 
+    res.render('netflexmylist', { movies: user.myList || [], role: req.user.role }); 
   } catch (err) {
     console.error('Error fetching My List:', err);
     res.status(500).send('Failed to load My List'); 
@@ -316,7 +456,7 @@ router.get('/netflex/mylist', authenticate, async (req, res) => {
 });
 
 
-router.get('/netflex/search', async (req, res) => {
+router.get('/netflex/search',authenticate, async (req, res) => {
   try {
     const query = req.query.query || "";
 
@@ -328,11 +468,13 @@ router.get('/netflex/search', async (req, res) => {
       });
     }
 
-    res.render("netflexsearch", { movies }); 
+    res.render("netflexsearch", { movies,query, role: req.user.role  }); 
   } catch (err) {
     console.error("Error searching movies:", err);
     res.status(500).send("Failed to search movies");
   }
 });
+
+
 
  module.exports = router;
