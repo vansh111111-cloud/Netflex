@@ -1,6 +1,6 @@
 const express = require('express');
 const dotenv = require('dotenv');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
  const userModel = require('./config/models/user.model'); 
  const CreatorRequest = require('./config/models/Creatorrequest');
@@ -14,6 +14,8 @@ const passport = require("passport");
 const session = require('express-session');
 const sendOtpEmail = require('../utils/mailer');
 const multer = require('multer');
+const storageMulter = multer.memoryStorage();
+const upload = multer({ storage: storageMulter });
 const cookieParser = require('cookie-parser');
 const app = express();
 const router = express.Router();
@@ -111,28 +113,16 @@ router.get(
   }
 );
 
-cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.CLOUD_API_KEY,
-  api_secret: process.env.CLOUD_API_SECRET
-});
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: async (req, file) => {
-    let resourceType = "image"; 
-    if (file.mimetype.startsWith("video")) {
-      resourceType = "video";  
-    }
-    return {
-      folder: "netflex_movies",
-      resource_type: resourceType,
-      allowed_formats: ["jpg", "png", "mp4"],
-      public_id: Date.now() + "-" + file.originalname.split(".")[0]
-    };
-  },
-});
+const { Storage } = require('@google-cloud/storage');
 
-const upload = multer({ storage });
+// Path to your JSON key file
+const keyFile = path.join(__dirname, '../gcs-key.json');
+
+// Initialize storage
+const storage = new Storage({ keyFilename: keyFile });
+
+// Replace with your bucket name
+const bucket = storage.bucket('netflex-movies');
 
  const authenticate = (req, res, next) => {
   const token = req.cookies.token;
@@ -377,8 +367,12 @@ function requireCreator(req, res, next) {
 
 
 router.get('/netflex/upload', requireCreator, (req, res) => {
-    res.render('netflexupload'); // <- view file
-});
+try {
+    res.render('netflexupload',{role: req.user.role}); // <- view file
+ }
+catch (err) {
+      console.error("Google login error:", err);}}
+ );
 
 
 
@@ -388,10 +382,41 @@ router.get('/netflex/upload', requireCreator, (req, res) => {
   requireCreator,
   upload.fields([
     { name: 'poster', maxCount: 1 },
-    { name: 'trailer', maxCount: 1 },
+    { name: 'movie', maxCount: 1 },
+      { name: 'actressPhotos', maxCount: 10 },
   ]),
   async (req, res) => {
     try {
+    let posterUrl = null;
+        if (req.files['poster']) {
+        	      const posterFile = req.files['poster'][0];
+        	            const posterGCS = bucket.file(Date.now() + '-' + posterFile.originalname);
+        	                  await posterGCS.save(posterFile.buffer, {
+        	                  	        contentType: posterFile.mimetype,
+        	                  	                public: true
+        	                  	                      });
+        	                  	                            posterUrl = `https://storage.googleapis.com/${bucket.name}/${posterGCS.name}`;
+        	                  	                                }
+
+        	                  	                                    // Actress photos
+        	                  	                                        let actressUrls = [];
+        	                  	                                            if (req.files['actressPhotos']) {
+        	                  	                                            	      for (let file of req.files['actressPhotos']) {
+        	                  	                                            	      	        const gcsFile = bucket.file(Date.now() + '-' + file.originalname);
+        	                  	                                            	      	                await gcsFile.save(file.buffer, { contentType: file.mimetype, public: true });
+        	                  	                                            	      	                        actressUrls.push(`https://storage.googleapis.com/${bucket.name}/${gcsFile.name}`);
+        	                  	                                            	      	                              }
+        	                  	                                            	      	                                  }
+
+        	                  	                                            	      	                                      // Movie
+        	                  	                                            	      	                                          let movieUrl = null;
+        	                  	                                            	      	                                              if (req.files['movie']) {
+        	                  	                                            	       const movieFile = req.files['movie'][0];
+        	                  	                                            	  const movieGCS = bucket.file(Date.now() + '-' + movieFile.originalname);
+        	                  	                                               await movieGCS.save(movieFile.buffer, { contentType: movieFile.mimetype, public: true });
+        	                  	         movieUrl = `https://storage.googleapis.com/${bucket.name}/${movieGCS.name}`;
+        	               }
+        	                  	          
       const movie = new Movie({
         title: req.body.title,
         description: req.body.description,
@@ -408,7 +433,11 @@ router.get('/netflex/upload', requireCreator, (req, res) => {
         // ✅ Store Cloudinary URLs (not local filenames)
         posterUrl: req.files['poster'] ? req.files['poster'][0].path : null,
         trailerUrl: req.files['trailer'] ? req.files['trailer'][0].path : null,
+        actressPhotos: req.files['actressPhotos']
+                  ? req.files['actressPhotos'].map(file => file.path)
+                            : [],
 
+                          
         uploadedBy: req.user._id,
       });
 
@@ -426,7 +455,13 @@ router.get('/netflex/upload', requireCreator, (req, res) => {
 
   router.get('/netflex/movie/:id',authenticate, async (req, res) => {
   const movie = await Movie.findById(req.params.id);
-  res.render('movieDetails', { movie , role: req.user.role });
+ 
+    const suggestedMovies = await Movie.find({
+    	    _id: { $ne: movie._id },
+    	        genre: { $in: movie.genre }
+    	          }).limit(6);
+    
+  res.render('movieDetails', { movie , role: req.user.role,suggestedMovies  })
 });
      
 router.post('/netflex/mylist/:movieId',authenticate, async (req, res) => {

@@ -4,7 +4,7 @@ const routerr = express.Router();
 const { body, validationResult } = require('express-validator');
 const userModel = require('./config/models/user.model');
 const CreatorRequest = require('./config/models/Creatorrequest');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
 dotenv.config();
