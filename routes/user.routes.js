@@ -113,16 +113,7 @@ router.get(
   }
 );
 
-const { Storage } = require('@google-cloud/storage');
 
-// Path to your JSON key file
-const keyFile = path.join(__dirname, '../gcs-key.json');
-
-// Initialize storage
-const storage = new Storage({ keyFilename: keyFile });
-
-// Replace with your bucket name
-const bucket = storage.bucket('netflex-movies');
 
  const authenticate = (req, res, next) => {
   const token = req.cookies.token;
